@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Editor de Spyder
-
-Este es un archivo temporal.
-"""
+#!usr/bin/python3
 
 def prueba():
     print("hola")
