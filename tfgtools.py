@@ -2,13 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon May 27 08:34:51 2019
-
-@author: rodrigo
+@author: rperela
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 import json
+import sys, getopt
+#Posible utilización de getopt para gestionar sys.argv
 
 
 
@@ -56,8 +57,13 @@ def preprocessing_bitalino_signal(file):
     return ecg, eda
     
     
-    
-ecg, eda = preprocessing_bitalino_signal("opensignals_79_2019-04-04_12-13-34.txt")
-
-print('ECG: ', ecg)
-print('EDA: ', eda)
+if __name__ == "__main__":
+    if len(sys.argv) == 2:
+        try:
+            ecg, eda = preprocessing_bitalino_signal(sys.argv[1])
+            print('ECG: ', ecg)
+            print('EDA: ', eda)
+        except FileNotFoundError:
+            print ('No such file')
+    else:
+        print('Usage error: tfgtools.py <input_file>')
