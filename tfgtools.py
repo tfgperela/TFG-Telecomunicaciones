@@ -54,7 +54,7 @@ def preprocessing_bitalino_signal(file):
     #ecg_temp y eda_temp son 34944 muestras (por el cálculo hecho del trigger), 244 muestras
     #de diferencia. ¿Influye en algo?¿Hay que hacerlo cuadrar?
     
-    return ecg, eda
+    return ecg, eda, trigger
     
     
 if __name__ == "__main__":
