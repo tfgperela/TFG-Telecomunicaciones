@@ -98,8 +98,25 @@ def check_patient(ecg_signal, sampling_rate):
 
 
 list_txt = get_txt_list()
-txt_file = list_txt[20]
+
+#f = open("lista_muestras3.txt", "w+")
+#f.write(str(list_txt))
+#f.close()
+
+print(list_txt)
+print("--------------------------------------------------------")
+print(list_txt.sort())
+
+#%%
+muestra = 0
+txt_file = list_txt[muestra]
 print(txt_file)
+
+#%%
+#Muestras_erroneas = [3, 5, 14, 23, 24]
+#Muestras_raras = [2, 4, 6, 8, 10, 15, 20, 21]
+#Error de lectura con las muestra 11, 18
+
 
 fs = get_sampling_rate(txt_file)
 ecg_signal, eda_signal = preprocessing_bitalino_signal(txt_file)
@@ -120,7 +137,7 @@ plot_ecg_signal(ecg_signal[0], fs, False)
 plt.show()
 
 
-    
+
     
 #if __name__ == "__main__":
 #    if len(sys.argv) == 2:
