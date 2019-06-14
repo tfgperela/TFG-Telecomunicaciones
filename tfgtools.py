@@ -10,8 +10,10 @@ from biosppy.signals import ecg
 import matplotlib.pyplot as plt
 import json
 import os
-from pathlib import Path
+#from pathlib import Path
 import inspect
+import glob
+
 #import sys #, getopt
 #Posible utilización de getopt para gestionar sys.argv
 
@@ -25,9 +27,11 @@ def get_txt_list():
     print('PATH: ', path)
 
     txt_list = []
-    for filename in Path(path).glob('**/*.txt'):
-        txt_list.append(filename)
-        
+    #for filename in Path(path).glob('**/*.txt'):
+    #    txt_list.append(filename)
+    txt_list = glob.glob(path + '/**/*.txt', recursive=True)
+    txt_list.sort()
+    
     return txt_list
 
 
@@ -105,18 +109,20 @@ list_txt = get_txt_list()
 
 print(list_txt)
 print("--------------------------------------------------------")
-print(list_txt.sort())
 
-#%%
+
 muestra = 0
 txt_file = list_txt[muestra]
 print(txt_file)
+plt.close('all')
 
-#%%
-#Muestras_erroneas = [3, 5, 14, 23, 24]
-#Muestras_raras = [2, 4, 6, 8, 10, 15, 20, 21]
-#Error de lectura con las muestra 11, 18
 
+#Muestras_erroneas = [2, 4, 7, 8, 12, 13, 22]
+#Muestras_raras = [1, 9, 10, 18, 21]
+#Directorio 7794 hay dos txt, uno FAILED
+#Directorio 8091 no hay txt
+#Directorio 8139 hay dos txt, uno no funciona
+#Directorio 9570 tiene txt (24) con diferente formato de columnos, no lo lee bien
 
 fs = get_sampling_rate(txt_file)
 ecg_signal, eda_signal = preprocessing_bitalino_signal(txt_file)
