@@ -99,6 +99,13 @@ def check_patient(ecg_signal, sampling_rate):
     plt.figure()
     return out
 
+def get_patient_number(file_route):
+    
+    patient_number = file_route.split('/')[7]
+    #print(patient_number)
+    
+    return patient_number
+
 
 
 list_txt = get_txt_list()
@@ -110,6 +117,8 @@ list_txt = get_txt_list()
 print(list_txt)
 print("--------------------------------------------------------")
 
+
+#%%
 
 muestra = 0
 txt_file = list_txt[muestra]
@@ -128,7 +137,7 @@ fs = get_sampling_rate(txt_file)
 ecg_signal, eda_signal = preprocessing_bitalino_signal(txt_file)
 print('ECG: ', ecg_signal)
 print('EDA: ', eda_signal)
-plot_ecg_signal(ecg_signal[0], fs, True)
+#plot_ecg_signal(ecg_signal[0], fs, True)
 
 
 out = check_patient(ecg_signal[0], fs)
@@ -141,6 +150,12 @@ ecg_example = ecg_signal[0]
 plt.plot(r_peaks,ecg_example[r_peaks],'rx')
 plot_ecg_signal(ecg_signal[0], fs, False)
 plt.show()
+patient_number = get_patient_number(txt_file)
+plt.title('Patient {}// Muestra {}'.format(patient_number, muestra))
+
+#%%HRV
+rr_interval = np.diff(r_peaks)
+plt.plot(rr_interval,'.-')
 
 
 
