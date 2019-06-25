@@ -119,12 +119,12 @@ print("--------------------------------------------------------")
 
 
 #%%
-
+"""
 muestra = 0
 txt_file = list_txt[muestra]
 print(txt_file)
 plt.close('all')
-
+"""
 
 #Muestras_erroneas = [2, 4, 7, 8, 12, 13, 22]
 #Muestras_raras = [1, 9, 10, 18, 21]
@@ -132,25 +132,27 @@ plt.close('all')
 #Directorio 8091 no hay txt
 #Directorio 8139 hay dos txt, uno no funciona
 #Directorio 9570 tiene txt (24) con diferente formato de columnos, no lo lee bien
-
+txt_file = 'opensignals_79_2019-04-04_12-13-34.txt'
 fs = get_sampling_rate(txt_file)
+
 ecg_signal, eda_signal = preprocessing_bitalino_signal(txt_file)
 print('ECG: ', ecg_signal)
 print('EDA: ', eda_signal)
 #plot_ecg_signal(ecg_signal[0], fs, True)
 
 
-out = check_patient(ecg_signal[0], fs)
+out = check_patient(ecg_signal[1], fs)
 plt.show()
 #print(out)
 #print(type(out))
 r_peaks = out['rpeaks']
 
-ecg_example = ecg_signal[0]
+ecg_example = ecg_signal[1]
+
 plt.plot(r_peaks,ecg_example[r_peaks],'rx')
-plot_ecg_signal(ecg_signal[0], fs, False)
+plot_ecg_signal(ecg_signal[1], fs, False)
 plt.show()
-patient_number = get_patient_number(txt_file)
+#patient_number = get_patient_number(txt_file)
 plt.title('Patient {}// Muestra {}'.format(patient_number, muestra))
 
 #%%HRV
