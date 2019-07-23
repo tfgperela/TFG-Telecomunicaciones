@@ -32,7 +32,7 @@ def get_txt_list():
     #    txt_list.append(filename)
     txt_list = glob.glob(path + '/**/*.txt', recursive=True)
     txt_list.sort()
-    
+    print("Len(list_txt): {}".format(len(txt_list)))
     return txt_list
 
 
@@ -185,249 +185,257 @@ plt.close('all')
 #Directorio 9570 tiene txt (24) con diferente formato de columnos, no lo lee bien
 #txt_file = 'opensignals_79_2019-04-04_12-13-34.txt'
 
-subject_number = 7
+subject_number = 21
+#24 tiene un formato de columnas diferente 
+ad_number = 0
 #Numero de anuncio, va de 0 a 5
-ad_number = 1
 
-txt_file = list_txt[subject_number]
-fs = get_sampling_rate(txt_file)
+X = np.empty([24,11])
 
-ecg_signal, eda_signal = preprocessing_bitalino_signal(txt_file)
-print('ECG: ', ecg_signal)
-print('EDA: ', eda_signal)
-#plot_ecg_signal(ecg_signal[0], fs, True)
+for subject_number in range(24):
+    #print("----------------{}----------------".format(subject_number))
+    print('----------------Sub {0} // Ad {1}----------------'.format(subject_number, ad_number))
 
-ecg_example = ecg_signal[ad_number]
-out = check_subject(ecg_example, fs)
-plt.show()
-
-## HRV ##
-r_peaks = out['rpeaks'] #en muestras
-
-
-plt.plot(r_peaks/fs, ecg_example[r_peaks],'rx')  #seconds  #r_peaks/fs si está en segundos
-plot_signal(ecg_example, fs, seconds=True)
-plt.title('ECG Ad {}'.format(ad_number))
-plt.xlabel('Time (sec)')
-plt.ylabel('ECG')
-
-#subject_number = get_subject_number(txt_file)
-#plt.title('Patient {}// Muestra {}'.format(subject_number, ad_number))
-
-plt.figure()
-rr_interval = (np.diff(r_peaks)/fs)*1000  #ms
-plt.plot(r_peaks[0:-1]/fs,rr_interval,'.-')
-plt.title('RR_interval Ad {}'.format(ad_number))
-plt.xlabel('Time (sec)')
-plt.ylabel('RR interval (ms)')
-#t = np.cumsum(rr)/1000
-#plt.plot(t,rr)
-
-
-## EDA ##
-eda_example = eda_signal[ad_number]
-plt.figure()
-plot_signal(eda_example, fs, seconds=True)
-plt.title('EDA Ad {}'.format(ad_number))
-plt.xlabel('Time (sec)')
-plt.ylabel('EDA')
-
-
-#%% Preprocesado de HRV y EDA
-
-##################
-## HRV analysis ##
-##################
+    txt_file = list_txt[subject_number]
+    print("File: {}".format(txt_file))
+    fs = get_sampling_rate(txt_file)
     
-plt.close('all')
-#suponemos que estamos analizando un segmento (unos únicos valores de un anuncio)
-
-
-
-#tenemos lo siguientes elementos
-
-#r_peaks
-#rr_interval
-#hr
-#hr_ts
-
-#la mayoría los proporciona biosppy y rr_interval lo obtenemos nosotros
-
-#cargamos los datos
-#ecg_data = np.load('ecg_data.npz')
-#print(ecg_data.files)
-rr = rr_interval #ms
-#rr = rr*1000 #rr in microsecs
-#plt.plot(rr)
-
-#corrección de artefactos con HRV
-my_hrv = HRV()
-prct = 0.2
-
-#creamos lista de labels para los latidos
-labels = ['N']*len(rr)
-
-ind_not_N_beats=my_hrv.artifact_ectopic_detection(rr, labels, prct, numBeatsAfterV = 4)
-#2. Correction
-#if every beat is Normal (sum(ind_not_N_beats) == 0), then no correction
-if ind_not_N_beats.sum() > 0:
-    rr_corrected = my_hrv.artifact_ectopic_correction(rr, ind_not_N_beats, method='linear') #ms
-    #¿No es rr*1000? --> IMP: cambiado, ambas aceptan rr en ms
-else:
-    rr_corrected = rr.copy() #ms
+    ecg_signal, eda_signal = preprocessing_bitalino_signal(txt_file)
+    print('ECG: ', ecg_signal)
+    print('EDA: ', eda_signal)
+    #plot_ecg_signal(ecg_signal[0], fs, True)
+    
+    ecg_example = ecg_signal[ad_number]
+    out = check_subject(ecg_example, fs)
+    plt.show()
+    
+    ## HRV ##
+    r_peaks = out['rpeaks'] #en muestras
+    
+    
+    plt.plot(r_peaks/fs, ecg_example[r_peaks],'rx')  #seconds  #r_peaks/fs si está en segundos
+    plot_signal(ecg_example, fs, seconds=True)
+    plt.title('ECG Sub {0} // Ad {1}'.format(subject_number, ad_number))
+    plt.xlabel('Time (sec)')
+    plt.ylabel('ECG')
+    
+    #subject_number = get_subject_number(txt_file)
+    #plt.title('Patient {}// Muestra {}'.format(subject_number, ad_number))
+    
+    plt.figure()
+    rr_interval = (np.diff(r_peaks)/fs)*1000  #ms
+    plt.plot(r_peaks[0:-1]/fs,rr_interval,'.-')
+    plt.title('RR_interval Sub {0} // Ad {1}'.format(subject_number, ad_number))
+    plt.xlabel('Time (sec)')
+    plt.ylabel('RR interval (ms)')
+    #t = np.cumsum(rr)/1000
+    #plt.plot(t,rr)
+    
+    
+    ## EDA ##
+    eda_example = eda_signal[ad_number]
+    plt.figure()
+    plot_signal(eda_example, fs, seconds=True)
+    plt.title('EDA Sub {0} // Ad {1}'.format(subject_number, ad_number))
+    plt.xlabel('Time (sec)')
+    plt.ylabel('EDA')
+    
+    
+    #%% Preprocesado de HRV y EDA
+    
+    ##################
+    ## HRV analysis ##
+    ##################
         
-#hr_computation
-
-hr = 60/(rr_corrected/1000) #pasamos rr_corrected a sec
-
-#MA filtering        
-hr_corrected = smooth(hr,window_len = 10) #bpm
-
-#smooth rr
-rr_smooth = smooth(rr_corrected,window_len=3) #ms
-
-#El número de elementos de ambas gráficas depende de r_peaks, así que puede variar
-#de un sujeto a otro (no depende de fs). A parte, en ambas no se especifica el
-#eje x, asi que representa el indice del valor.
-#plot rr
-plt.figure()
-plt.plot(rr,label = 'RR interval original')
-plt.plot(rr_corrected,label = 'RR artifact corrected')
-plt.plot(rr_smooth,label = 'RR smoothed')
-plt.legend()
-
-plt.figure()
-plt.plot(out['heart_rate'],label='HR from biosppy')
-plt.plot(hr,label='HR rr_interval corrected')
-plt.plot(hr_corrected,label='HR smoothed')
-plt.legend()
-
-#%%
-##################
-## EDA analysis ##
-##################
-
-plt.close('all')
-"""
-siguiendo el paper de KIM 2004 vamos a utilizar los siguientes parámetros:
-mean DC level of EDA --> SCL?
-mean values of SCR amplitudes
-duration of SCR ocurrences
-number of ocurrences
-"""
-
-#OJO Detected SCRs with an amplitude smaller that 10% of the maximum SCR
-#amplitude in this segment were excluded.
-#I DON'T KNOW IF THIS IS IMPLEMENTED IN BIOSPPY, CHECK => Checked, it's ok
-
-#load eda data
-#eda_raw = np.load('eda.npy')
-#plt.plot(eda_raw)
-from biosppy.signals import eda as eda_biosppy
-
-#get filtered eda
-eda_obj = eda_biosppy.eda(eda_example,sampling_rate = fs,show=False)
-
-#get 
-print(eda_obj.keys())
-
-
-"""
-#get amplitudes and peaks using basic_scr
-eda_scr = eda_biosppy.basic_scr(eda_obj['filtered'],sampling_rate = fs)
-#discard amplitudes samller than 10% maximum amplitude
+    plt.close('all')
+    #suponemos que estamos analizando un segmento (unos únicos valores de un anuncio)
     
-max_amp = np.max(eda_scr['amplitudes'])
-thr = 0.1
-
-amp = []
-onsets =[]
-peaks = []
-for i,a in enumerate(eda_scr['amplitudes']):
     
-    relative_diff = 1-a/max_amp 
-    if relative_diff < thr:
-        onsets.append(eda_scr['onsets'][i])
-        peaks.append(eda_scr['peaks'][i])
-        amp.append(a)
-"""
-
-#convert eda filtered (tonic) to microSiemens --> ¿Por qué se convierte así?
-Rmohm = 1 - eda_obj['filtered']/2**10
-eda = 1/Rmohm
-
-
-ymin, ymax = np.min(eda),np.max(eda)
-alpha = 0.1 * (ymax - ymin)    #Este alpha para qué sirve?? --> para que las 
-                               #líneas sobrepasen por encima y por debajo la 
-                               #gráfica
-ymax += alpha
-ymin -= alpha
-plt.figure()
-plt.plot(eda_obj['ts'],eda)  #utilizamos eda_obj['ts'], que está en sec
-plt.vlines(eda_obj['onsets']/fs, ymin, ymax,color='m',label='Onsets')
-plt.vlines(eda_obj['peaks']/fs, ymin, ymax,color='g',label='Peaks')
-plt.ylabel('microSiemens')
-plt.xlabel('Time (sec)')
-
-
-
-
-#%% Calculo de los indices de HRV
-
-##¿Se calculan con rr, rr_corrected o rr_smooth? --> IMP
-#rr = rr_smooth.copy()
-rr = rr #*1000 #IMP: las funciones utilizan rr en ms
-
-#1. Temporales
-
-avnn = my_hrv.avnn(rr)
-nn50 = my_hrv.nn50(rr)
-pnn50 = my_hrv.pnn50(rr)
-rmssd = my_hrv.rmssd(rr)
-sdann = my_hrv.sdann(rr)
-sdnn = my_hrv.sdnn(rr)
-
-print('avnn = {0:.2f}'.format(avnn))
-print('nn50 = {0:.2f}'.format(nn50))
-print('pnn50 = {0:.2f}'.format(pnn50))
-print('rmssd = {0:.2f}'.format(rmssd))
-print('sdann = {0:.2f}'.format(sdann))
-print('sdnn = {0:.2f}'.format(sdnn))
-
-
-#%%
-
-#2. Espectrales
-
-# 2.1. We first re-interpolate the signal to 4Hz
-
-rr_4hz,t_4hz = my_hrv.main_interp(rr)
-
-
-# 2. PSD estimation
-f,Pxx = my_hrv.main_welch(rr_4hz)
-
-# 3. Frequency domain HRV indices
-
-_, _, _, Plf, Phf, lfhf_ratio = my_hrv.spectral_indices(Pxx,f)
-
-print("HRV Frequency Domain Analysis")
-
-print('Plf = {0:.2f}'.format(Plf))
-print('Phf = {0:.2f}'.format(Phf))
-print('lf/hf = {0:.2f}'.format(lfhf_ratio))
-
-
-
-
     
-#%% Creando matriz con indices para un anuncio
-
-#Fila--> [mean(hr) mean(eda) avnn nn50 pnn50 rmssd sdann sdnn Plf Phf lfhf_ratio]
-
-X = [np.mean(hr_corrected), np.mean(eda), avnn, nn50, pnn50, rmssd, sdann, sdnn, Plf, Phf, lfhf_ratio]
-#¿Qué HR utilizar? --> el que devuelve out, hr, hr_corrected
+    #tenemos lo siguientes elementos
+    
+    #r_peaks
+    #rr_interval
+    #hr
+    #hr_ts
+    
+    #la mayoría los proporciona biosppy y rr_interval lo obtenemos nosotros
+    
+    #cargamos los datos
+    #ecg_data = np.load('ecg_data.npz')
+    #print(ecg_data.files)
+    rr = rr_interval #ms
+    #rr = rr*1000 #rr in microsecs
+    #plt.plot(rr)
+    
+    #corrección de artefactos con HRV
+    my_hrv = HRV()
+    prct = 0.2
+    
+    #creamos lista de labels para los latidos
+    labels = ['N']*len(rr)
+    
+    ind_not_N_beats=my_hrv.artifact_ectopic_detection(rr, labels, prct, numBeatsAfterV = 4)
+    #2. Correction
+    #if every beat is Normal (sum(ind_not_N_beats) == 0), then no correction
+    if ind_not_N_beats.sum() > 0:
+        rr_corrected = my_hrv.artifact_ectopic_correction(rr, ind_not_N_beats, method='linear') #ms
+        #¿No es rr*1000? --> IMP: cambiado, ambas aceptan rr en ms
+    else:
+        rr_corrected = rr.copy() #ms
+            
+    #hr_computation
+    
+    hr = 60/(rr_corrected/1000) #pasamos rr_corrected a sec
+    
+    #MA filtering        
+    hr_corrected = smooth(hr,window_len = 10) #bpm
+    
+    #smooth rr
+    rr_smooth = smooth(rr_corrected,window_len=3) #ms
+    
+    #El número de elementos de ambas gráficas depende de r_peaks, así que puede variar
+    #de un sujeto a otro (no depende de fs). A parte, en ambas no se especifica el
+    #eje x, asi que representa el indice del valor.
+    #plot rr
+    plt.figure()
+    plt.plot(rr,label = 'RR interval original')
+    plt.plot(rr_corrected,label = 'RR artifact corrected')
+    plt.plot(rr_smooth,label = 'RR smoothed')
+    plt.legend()
+    
+    plt.figure()
+    plt.plot(out['heart_rate'],label='HR from biosppy')
+    plt.plot(hr,label='HR rr_interval corrected')
+    plt.plot(hr_corrected,label='HR smoothed')
+    plt.legend()
+    
+    #%%
+    ##################
+    ## EDA analysis ##
+    ##################
+    
+    plt.close('all')
+    """
+    siguiendo el paper de KIM 2004 vamos a utilizar los siguientes parámetros:
+    mean DC level of EDA --> SCL?
+    mean values of SCR amplitudes
+    duration of SCR ocurrences
+    number of ocurrences
+    """
+    
+    #OJO Detected SCRs with an amplitude smaller that 10% of the maximum SCR
+    #amplitude in this segment were excluded.
+    #I DON'T KNOW IF THIS IS IMPLEMENTED IN BIOSPPY, CHECK => Checked, it's ok
+    
+    #load eda data
+    #eda_raw = np.load('eda.npy')
+    #plt.plot(eda_raw)
+    from biosppy.signals import eda as eda_biosppy
+    
+    #get filtered eda
+    eda_obj = eda_biosppy.eda(eda_example,sampling_rate = fs,show=False)
+    
+    #get 
+    print(eda_obj.keys())
+    
+    
+    """
+    #get amplitudes and peaks using basic_scr
+    eda_scr = eda_biosppy.basic_scr(eda_obj['filtered'],sampling_rate = fs)
+    #discard amplitudes samller than 10% maximum amplitude
+        
+    max_amp = np.max(eda_scr['amplitudes'])
+    thr = 0.1
+    
+    amp = []
+    onsets =[]
+    peaks = []
+    for i,a in enumerate(eda_scr['amplitudes']):
+        
+        relative_diff = 1-a/max_amp 
+        if relative_diff < thr:
+            onsets.append(eda_scr['onsets'][i])
+            peaks.append(eda_scr['peaks'][i])
+            amp.append(a)
+    """
+    
+    #convert eda filtered (tonic) to microSiemens --> ¿Por qué se convierte así?
+    Rmohm = 1 - eda_obj['filtered']/2**10
+    eda = 1/Rmohm
+    
+    
+    ymin, ymax = np.min(eda),np.max(eda)
+    alpha = 0.1 * (ymax - ymin)    #Este alpha para qué sirve?? --> para que las 
+                                   #líneas sobrepasen por encima y por debajo la 
+                                   #gráfica
+    ymax += alpha
+    ymin -= alpha
+    plt.figure()
+    plt.plot(eda_obj['ts'],eda)  #utilizamos eda_obj['ts'], que está en sec
+    plt.vlines(eda_obj['onsets']/fs, ymin, ymax,color='m',label='Onsets')
+    plt.vlines(eda_obj['peaks']/fs, ymin, ymax,color='g',label='Peaks')
+    plt.ylabel('microSiemens')
+    plt.xlabel('Time (sec)')
+    
+    
+    
+    
+    #%% Calculo de los indices de HRV
+    
+    ##¿Se calculan con rr, rr_corrected o rr_smooth? --> IMP
+    #rr = rr_smooth.copy()
+    rr = rr #*1000 #IMP: las funciones utilizan rr en ms
+    
+    #1. Temporales
+    
+    avnn = my_hrv.avnn(rr)
+    nn50 = my_hrv.nn50(rr)
+    pnn50 = my_hrv.pnn50(rr)
+    rmssd = my_hrv.rmssd(rr)
+    sdann = my_hrv.sdann(rr)
+    sdnn = my_hrv.sdnn(rr)
+    
+    print('avnn = {0:.2f}'.format(avnn))
+    print('nn50 = {0:.2f}'.format(nn50))
+    print('pnn50 = {0:.2f}'.format(pnn50))
+    print('rmssd = {0:.2f}'.format(rmssd))
+    print('sdann = {0:.2f}'.format(sdann))
+    print('sdnn = {0:.2f}'.format(sdnn))
+    
+    
+    #%%
+    
+    #2. Espectrales
+    
+    # 2.1. We first re-interpolate the signal to 4Hz
+    
+    rr_4hz,t_4hz = my_hrv.main_interp(rr)
+    
+    
+    # 2. PSD estimation
+    f,Pxx = my_hrv.main_welch(rr_4hz)
+    
+    # 3. Frequency domain HRV indices
+    
+    _, _, _, Plf, Phf, lfhf_ratio = my_hrv.spectral_indices(Pxx,f)
+    
+    print("HRV Frequency Domain Analysis")
+    
+    print('Plf = {0:.2f}'.format(Plf))
+    print('Phf = {0:.2f}'.format(Phf))
+    print('lf/hf = {0:.2f}'.format(lfhf_ratio))
+    
+    
+    
+    
+        
+    #%% Creando matriz con indices para un anuncio
+    
+    #Fila--> [mean(hr) mean(eda) avnn nn50 pnn50 rmssd sdann sdnn Plf Phf lfhf_ratio]
+    
+    X[subject_number] = [np.mean(hr_corrected), np.mean(eda), avnn, nn50, pnn50, rmssd, sdann, sdnn, Plf, Phf, lfhf_ratio]
+    #¿Qué HR utilizar? --> el que devuelve out, hr, hr_corrected
 
 
 
