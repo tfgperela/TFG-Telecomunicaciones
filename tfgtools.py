@@ -6,6 +6,7 @@ Created on Mon May 27 08:34:51 2019
 """
 
 import numpy as np
+import pandas as pd
 from biosppy.signals import ecg
 import matplotlib.pyplot as plt
 import json
@@ -18,7 +19,7 @@ from HRV import *
 #import sys #, getopt
 #Posible utilización de getopt para gestionar sys.argv
 
-def get_txt_list():
+def get_txt_list(data_test):
     filename = inspect.getframeinfo(inspect.currentframe()).filename
     path = os.path.dirname(os.path.abspath(filename))
     path = (path, '/data')
@@ -26,14 +27,34 @@ def get_txt_list():
     path = ''.join(path)
     #
     print('PATH: ', path)
+    
+    ###
+    #print('DATA TO LOAD: ', data_test)
+    txt_list = []
+    print("Len(data_test): {}".format(len(data_test)))
+    i=0
+    for x in data_test['Identificador']:
+        i += 1
+        print('{0}: {1}'.format(i, x))
+        txt_temp = glob.glob(path + '/' + x + '/Bitalino/*.txt', recursive=True)
+        print(txt_temp)
+        txt_list.append((x, txt_temp))
+    #txt_list.sort()
+    print("Len(list_txt): {}".format(len(txt_list)))
+    return txt_list  
+        
+    ###
 
+
+    '''
     txt_list = []
     #for filename in Path(path).glob('**/*.txt'):
     #    txt_list.append(filename)
-    txt_list = glob.glob(path + '/**/*.txt', recursive=True)
+    txt_list = glob.glob(path + '/**/Bitalino/*.txt', recursive=True)
     txt_list.sort()
     print("Len(list_txt): {}".format(len(txt_list)))
     return txt_list
+    '''
 
 
 def get_sampling_rate(file):
@@ -63,8 +84,10 @@ def preprocessing_bitalino_signal(file):
     #end = trigger_values[0][-1]
     
     #Señales desde el inicio hasta el final del video
-    ecg_temp = bit[start:,-2]
-    eda_temp = bit[start:,-1]
+    #ecg_temp = bit[start:,-2]
+    #eda_temp = bit[start:,-1]
+    ecg_temp = bit[start:,5]
+    eda_temp = bit[start:,6]
     #plt.plot(ecg_temp[5000:5200])
 
     #Señales separadas por anuncios
@@ -72,6 +95,7 @@ def preprocessing_bitalino_signal(file):
     
     ecg_signal = []
     eda_signal = []
+    #print('FS: {0} // TRIGGER: {1}'.format(fs, trigger_values))
     for i in range(6):
         ecg_signal.append(ecg_temp[(time_ad[i]*fs):(time_ad[i+1]*fs)])
         eda_signal.append(eda_temp[(time_ad[i]*fs):(time_ad[i+1]*fs)])
@@ -158,14 +182,47 @@ def smooth(x,window_len=11,window='flat'):
 
 #%% Obtencion de lista de archivos txt con ecg/eda de todos los sujetos
 
-list_txt = get_txt_list()
+
+#data_xls = pd.read_excel('documentacion/good_patients.xlsx')
+#print(data_xls.values)
+
+data_csv = pd.read_csv('documentacion/good_patients.csv', converters={'Identificador': lambda x: str(x)})
+#'converters' sirve para castear 'Identificador' a string y asi mantener los 'leading zeros' al cargar el csv
+data_csv_filtered = data_csv[['Identificador', 'Sexo', 'Valido', 'AD 1', 'AD 2', 'AD 3', 'AD 4', 'AD 5', 'AD 6']]
+
+#
+data_test_todo = data_csv_filtered.loc[data_csv_filtered['Valido'] == 'VERDADERO']
+data_test_hombres = data_csv_filtered.loc[(data_csv_filtered['Sexo'] == 'Hombre') & (data_csv_filtered['Valido'] == 'VERDADERO')]
+data_test_mujeres = data_csv_filtered.loc[(data_csv_filtered['Sexo'] == 'Mujer') & (data_csv_filtered['Valido'] == 'VERDADERO')]
+data_test_mujeres2 = data_test_todo.loc[data_test_todo['Sexo'] == 'Mujer']
+
+#IMPORTANTE --> quitados:
+#4891 y 1428-->EDA sale bastante fuera de lo normal
+#3331 --> solo hay trigger final, no inicial 
+
+
+#IMPORTANTE: cambiar el data_test por el que quieras obtener
+data_test = data_test_todo
+data_test = data_test.set_index("Identificador", drop = False)
+#print(data_test[['Identificador']])
+print(data_test)  #IMP: 8396 aparece como 8369 en el excel
+
+#import csv
+#with open('documentacion/good_patients.csv', 'rb') as csvfile:
+#    patients_reader = csv.reader(csvfile, delimiter=' ')
+#    for row in patients_reader:
+#        print (', '.join(row))
+
+
+list_txt = get_txt_list(data_test)
+#3326 no contiene txt
 
 #f = open("lista_muestras3.txt", "w+")
 #f.write(str(list_txt))
 #f.close()
 
 print("--------------------------------------------------------")
-print(list_txt)
+#print(list_txt)
 print("--------------------------------------------------------")
 
 
@@ -182,21 +239,32 @@ plt.close('all')
 #Directorio 7794 hay dos txt, uno FAILED
 #Directorio 8091 no hay txt
 #Directorio 8139 hay dos txt, uno no funciona
-#Directorio 9570 tiene txt (24) con diferente formato de columnos, no lo lee bien
+#Directorio 9570 tiene txt (24) con diferente formato de columnas, no lo lee bien
 #txt_file = 'opensignals_79_2019-04-04_12-13-34.txt'
 
-subject_number = 21
-#24 tiene un formato de columnas diferente 
+
+#####IMPORTANTE#######
+#Para obetener los indices para todos los anuncios, ir cambiando este valor (ad_number)
 ad_number = 0
 #Numero de anuncio, va de 0 a 5
 
-X = np.empty([24,11])
+numero_pacientes = len(list_txt)
 
-for subject_number in range(24):
+X = np.empty([numero_pacientes,11])
+#X[0] = ["mean(hr)", "mean(eda)", "avnn", "nn50", "pnn50", "rmssd", "sdnn", "Plf", "Phf", "lfhf_ratio"]
+
+subject_number = 0
+#24 tiene un formato de columnas diferente 
+
+for subject_number in range(numero_pacientes):
+#for i in range(1):
     #print("----------------{}----------------".format(subject_number))
+    #subject_number = 9
+
     print('----------------Sub {0} // Ad {1}----------------'.format(subject_number, ad_number))
 
-    txt_file = list_txt[subject_number]
+    txt_temp_file = list_txt[subject_number][1]
+    txt_file = txt_temp_file[0]
     print("File: {}".format(txt_file))
     fs = get_sampling_rate(txt_file)
     
@@ -378,8 +446,9 @@ for subject_number in range(24):
     plt.ylabel('microSiemens')
     plt.xlabel('Time (sec)')
     
-    
-    
+    #Normalizamos EDA --> esta mal!! no usar!!
+    #eda_norm = np.mean((eda-np.mean(eda))/np.std(eda))
+    #print('eda_norm = {0:.2f}'.format(eda_norm))
     
     #%% Calculo de los indices de HRV
     
@@ -393,7 +462,7 @@ for subject_number in range(24):
     nn50 = my_hrv.nn50(rr)
     pnn50 = my_hrv.pnn50(rr)
     rmssd = my_hrv.rmssd(rr)
-    sdann = my_hrv.sdann(rr)
+    sdann = my_hrv.sdann(rr)   ##IMP: valor siempre NaN --> ¿Posible sea por durar menos de 5 mins? --> Quitarla!!!
     sdnn = my_hrv.sdnn(rr)
     
     print('avnn = {0:.2f}'.format(avnn))
@@ -412,13 +481,19 @@ for subject_number in range(24):
     
     rr_4hz,t_4hz = my_hrv.main_interp(rr)
     
+    #En caso de que la señal rr_4hz no sea mayor a 256 entonces da error (caso: Sub 1 // Ad 2)
+    try:
+        # 2. PSD estimation
+        f,Pxx = my_hrv.main_welch(rr_4hz)
+        
+        # 3. Frequency domain HRV indices
+        _, _, _, Plf, Phf, lfhf_ratio = my_hrv.spectral_indices(Pxx,f)
+        
+    except ValueError:
+        print("VALUE ERROR\n")
+        Plf, Phf, lfhf_ratio = 0,0,0
     
-    # 2. PSD estimation
-    f,Pxx = my_hrv.main_welch(rr_4hz)
     
-    # 3. Frequency domain HRV indices
-    
-    _, _, _, Plf, Phf, lfhf_ratio = my_hrv.spectral_indices(Pxx,f)
     
     print("HRV Frequency Domain Analysis")
     
@@ -427,20 +502,38 @@ for subject_number in range(24):
     print('lf/hf = {0:.2f}'.format(lfhf_ratio))
     
     
-    
-    
+    #Obtener el score correspondiente
+    txt_file_num = list_txt[subject_number][0]
+    print("File_num: {}".format(txt_file_num))
+    column_ad_number = "AD " + str(ad_number+1)
+    temp_score = data_test.loc[txt_file_num].at[column_ad_number]
+    #print("*--|" + column_ad_number + "|--*")
+    #print("--|" + temp_score + "|--")
+    score = float(temp_score.replace(',','.'))
+    print(score)
         
     #%% Creando matriz con indices para un anuncio
     
-    #Fila--> [mean(hr) mean(eda) avnn nn50 pnn50 rmssd sdann sdnn Plf Phf lfhf_ratio]
+    #Fila--> [mean(hr) eda_norm avnn nn50 pnn50 rmssd sdnn Plf Phf lfhf_ratio score]
     
-    X[subject_number] = [np.mean(hr_corrected), np.mean(eda), avnn, nn50, pnn50, rmssd, sdann, sdnn, Plf, Phf, lfhf_ratio]
+    X[subject_number] = [np.mean(hr_corrected), np.mean(eda), avnn, nn50, pnn50, rmssd, sdnn, Plf, Phf, lfhf_ratio, score]
     #¿Qué HR utilizar? --> el que devuelve out, hr, hr_corrected
 
 
+#%%
+    
+#Cambiamos mean(eda) por mean(eda) normalizada
+print('EDA_NO_NORM: = {}'.format(X[:,1]))
 
+eda_norm = (X[:,1]-np.mean(X[:,1]))/np.std(X[:,1])
+print('eda_norm = {}'.format(eda_norm))
+X[:,1] = eda_norm
+print("-------------DONE---------------")
 
-
+    #%% Exportar X a csv
+    
+#X.to_csv('out.csv')
+np.savetxt('indices/mujeres/ad_' + str(ad_number) + '.csv', X, delimiter=',', header="mean(hr), mean(eda), avnn, nn50, pnn50, rmssd, sdnn, Plf, Phf, lfhf_ratio, score")
 
 
 
