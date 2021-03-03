@@ -15,6 +15,8 @@ import os
 import inspect
 import glob
 from HRV import *
+from sklearn import preprocessing
+
 
 #import sys #, getopt
 #Posible utilización de getopt para gestionar sys.argv
@@ -73,7 +75,7 @@ def get_sampling_rate(file):
     
     
 
-def preprocessing_bitalino_signal(file):
+def preprocessing_bitalino_signal(file, sampling_rate):
 
     bit = np.loadtxt(file)
     
@@ -97,8 +99,8 @@ def preprocessing_bitalino_signal(file):
     eda_signal = []
     #print('FS: {0} // TRIGGER: {1}'.format(fs, trigger_values))
     for i in range(6):
-        ecg_signal.append(ecg_temp[(time_ad[i]*fs):(time_ad[i+1]*fs)])
-        eda_signal.append(eda_temp[(time_ad[i]*fs):(time_ad[i+1]*fs)])
+        ecg_signal.append(ecg_temp[(time_ad[i]*sampling_rate):(time_ad[i+1]*sampling_rate)])
+        eda_signal.append(eda_temp[(time_ad[i]*sampling_rate):(time_ad[i+1]*sampling_rate)])
     
     return ecg_signal, eda_signal
 
@@ -186,7 +188,7 @@ def smooth(x,window_len=11,window='flat'):
 #data_xls = pd.read_excel('documentacion/good_patients.xlsx')
 #print(data_xls.values)
 
-data_csv = pd.read_csv('documentacion/good_patients.csv', converters={'Identificador': lambda x: str(x)})
+data_csv = pd.read_csv('indices/good_patients.csv', converters={'Identificador': lambda x: str(x)})
 #'converters' sirve para castear 'Identificador' a string y asi mantener los 'leading zeros' al cargar el csv
 data_csv_filtered = data_csv[['Identificador', 'Sexo', 'Valido', 'AD 1', 'AD 2', 'AD 3', 'AD 4', 'AD 5', 'AD 6']]
 
@@ -205,7 +207,9 @@ data_test_mujeres2 = data_test_todo.loc[data_test_todo['Sexo'] == 'Mujer']
 data_test = data_test_todo
 data_test = data_test.set_index("Identificador", drop = False)
 #print(data_test[['Identificador']])
+print("-------------------------000----------------------------")
 print(data_test)  #IMP: 8396 aparece como 8369 en el excel
+print("-------------------------000----------------------------")
 
 #import csv
 #with open('documentacion/good_patients.csv', 'rb') as csvfile:
@@ -221,7 +225,15 @@ list_txt = get_txt_list(data_test)
 #f.write(str(list_txt))
 #f.close()
 
+#Calculamos cuantos minutos dura cada anuncio
 print("--------------------------------------------------------")
+time_init_ad = [0, 60, 120, 180, 226, 287, 347]
+ad_time_len = []
+for i in range(len(time_init_ad) - 1):
+    ad_time_len.append((time_init_ad[i+1]-time_init_ad[i])/60)
+    #ad_time_len = time_init_ad []
+    #print('hola ', i)
+print(ad_time_len)
 #print(list_txt)
 print("--------------------------------------------------------")
 
@@ -239,7 +251,7 @@ plt.close('all')
 #Directorio 7794 hay dos txt, uno FAILED
 #Directorio 8091 no hay txt
 #Directorio 8139 hay dos txt, uno no funciona
-#Directorio 9570 tiene txt (24) con diferente formato de columnas, no lo lee bien
+#Directorio 9570 tiene txt (24) con diferente formato de columnas, no lo lee bien --> IMP
 #txt_file = 'opensignals_79_2019-04-04_12-13-34.txt'
 
 
@@ -248,15 +260,17 @@ plt.close('all')
 ad_number = 0
 #Numero de anuncio, va de 0 a 5
 
-numero_pacientes = len(list_txt)
+numero_sujetos = len(list_txt)
+#numero_sujetos=1
 
-X = np.empty([numero_pacientes,11])
+X = np.empty([numero_sujetos,12])
 #X[0] = ["mean(hr)", "mean(eda)", "avnn", "nn50", "pnn50", "rmssd", "sdnn", "Plf", "Phf", "lfhf_ratio"]
+
 
 subject_number = 0
 #24 tiene un formato de columnas diferente 
 
-for subject_number in range(numero_pacientes):
+for subject_number in range(numero_sujetos):
 #for i in range(1):
     #print("----------------{}----------------".format(subject_number))
     #subject_number = 9
@@ -268,7 +282,7 @@ for subject_number in range(numero_pacientes):
     print("File: {}".format(txt_file))
     fs = get_sampling_rate(txt_file)
     
-    ecg_signal, eda_signal = preprocessing_bitalino_signal(txt_file)
+    ecg_signal, eda_signal = preprocessing_bitalino_signal(txt_file, fs)
     print('ECG: ', ecg_signal)
     print('EDA: ', eda_signal)
     #plot_ecg_signal(ecg_signal[0], fs, True)
@@ -446,6 +460,13 @@ for subject_number in range(numero_pacientes):
     plt.ylabel('microSiemens')
     plt.xlabel('Time (sec)')
     
+    ########### --> NEW
+    #Calculo de ns_scr (responses per minute)
+    print("Len(eda_scr_1): {}".format(len(eda_obj['peaks'])))
+    print("Len(eda_scr_2): {}".format(len(eda_obj['onsets'])))
+    ns_scr = len(eda_obj['peaks'])/ad_time_len[ad_number]
+    print(ns_scr)
+    ###########  --> NEW
     #Normalizamos EDA --> esta mal!! no usar!!
     #eda_norm = np.mean((eda-np.mean(eda))/np.std(eda))
     #print('eda_norm = {0:.2f}'.format(eda_norm))
@@ -514,26 +535,45 @@ for subject_number in range(numero_pacientes):
         
     #%% Creando matriz con indices para un anuncio
     
-    #Fila--> [mean(hr) eda_norm avnn nn50 pnn50 rmssd sdnn Plf Phf lfhf_ratio score]
+    #Fila--> [mean(hr) eda_norm avnn nn50 pnn50 rmssd sdnn Plf Phf lfhf_ratio score ns_scr]
     
-    X[subject_number] = [np.mean(hr_corrected), np.mean(eda), avnn, nn50, pnn50, rmssd, sdnn, Plf, Phf, lfhf_ratio, score]
+    X[subject_number] = [np.mean(hr_corrected), np.mean(eda), avnn, nn50, pnn50, rmssd, sdnn, Plf, Phf, lfhf_ratio, score, ns_scr]
     #¿Qué HR utilizar? --> el que devuelve out, hr, hr_corrected
 
 
-#%%
+#%% Normalizado de datos 
     
 #Cambiamos mean(eda) por mean(eda) normalizada
 print('EDA_NO_NORM: = {}'.format(X[:,1]))
 
 eda_norm = (X[:,1]-np.mean(X[:,1]))/np.std(X[:,1])
 print('eda_norm = {}'.format(eda_norm))
-X[:,1] = eda_norm
+#X[:,1] = eda_norm
 print("-------------DONE---------------")
+
+
+#Normalizado de la matriz X con StandardScaler
+#X = preprocessing.scale(X)
+
+
+#Normalizado de la matriz X con MinMaxScaler
+#min_max_scaler = preprocessing.MinMaxScaler()
+#X = min_max_scaler.fit_transform(X)
+
+
+#Normalizado de la matriz X con MaxAbsScaler
+#max_abs_scaler = preprocessing.MaxAbsScaler()
+#X = max_abs_scaler.fit_transform(X)
+
+
+#Normalizado de la matriz X con RobustScaler
+#robust_scaler = preprocessing.RobustScaler()
+#X = robust_scaler.fit_transform(X)
 
     #%% Exportar X a csv
     
 #X.to_csv('out.csv')
-np.savetxt('indices/mujeres/ad_' + str(ad_number) + '.csv', X, delimiter=',', header="mean(hr), mean(eda), avnn, nn50, pnn50, rmssd, sdnn, Plf, Phf, lfhf_ratio, score")
+np.savetxt('indices/todo/prueba/ad_' + str(ad_number) + '.csv', X, delimiter=',', header="mean(hr), mean(eda), avnn, nn50, pnn50, rmssd, sdnn, Plf, Phf, lfhf_ratio, score, ns_scr")
 
 
 
